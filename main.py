@@ -12,8 +12,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 
 def get_debug_prices():
-    with open("debug_coins.json", mode="r") as file:
-        return json.load(file)
+    with open("resources/debug_coins.json", mode="r") as debug_file:
+        return json.load(debug_file)
 
 
 def get_cmc_prices():
