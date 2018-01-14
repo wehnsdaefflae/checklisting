@@ -241,14 +241,16 @@ class Bot:
         self.updater.dispatcher.add_handler(unknown_handler)
 
         self.updater.start_polling()
-        self.updater.idle()
-
         print("Finished initialization....")
+
+        self.updater.idle()
 
 
 if __name__ == "__main__":
+    print("Reading token...")
     with open("resources/telegram-token.txt", mode="r") as file:
         token = file.readline().strip()
 
+    print("Instantiating bot...")
     new_bot = Bot(token)
     new_bot.init()
