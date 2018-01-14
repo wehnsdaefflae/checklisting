@@ -254,6 +254,8 @@ if __name__ == "__main__":
     with open("resources/telegram-token.txt", mode="r") as file:
         token = file.readline().strip()
 
+    # TODO: change the bots state when it polls
+
     print("Instantiating bot...")
     new_bot = Bot(token)
     new_bot.init()
