@@ -1,5 +1,4 @@
 import json
-from json import JSONDecodeError
 
 import os
 
@@ -117,7 +116,7 @@ class Bot:
         with open(json_path, mode="r") as file:
             try:
                 symbols = json.load(file)
-            except JSONDecodeError:
+            except ValueError:
                 print("Error while parsing JSON in <{}>! Defaulting to empty list.".format(json_path))
                 symbols = [">json error<"]
             except FileNotFoundError:
