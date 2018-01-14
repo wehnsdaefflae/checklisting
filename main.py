@@ -211,6 +211,8 @@ class Bot:
         self.__list_symbols__(bot, update)
 
     def init(self):
+        print("Initializing bot...")
+
         # start service
         start_handler = CommandHandler("start", self.__start__, pass_job_queue=True)
         self.updater.dispatcher.add_handler(start_handler)
@@ -240,6 +242,8 @@ class Bot:
 
         self.updater.start_polling()
         self.updater.idle()
+
+        print("Finished initialization....")
 
 
 if __name__ == "__main__":
