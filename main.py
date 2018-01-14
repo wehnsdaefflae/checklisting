@@ -81,9 +81,9 @@ class CoinState:
 
 
 class Bot:
-    def __init__(self, token):
-        self.updater = Updater(token)
-        self.interval = 5
+    def __init__(self, token_str):
+        self.updater = Updater(token_str)
+        self.interval = 300
         self.jobs = dict()
         self.cs = CoinState()
 
