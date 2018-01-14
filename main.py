@@ -113,9 +113,9 @@ class Bot:
         json_path = "chats/{:d}/symbols.json".format(chat_id)
         if not os.path.isfile(json_path):
             return []
-        with open(json_path, mode="r") as file:
+        with open(json_path, mode="r") as json_file:
             try:
-                symbols = json.load(file)
+                symbols = json.load(json_file)
             except ValueError:
                 print("Error while parsing JSON in <{}>! Defaulting to empty list.".format(json_path))
                 symbols = [">json error<"]
@@ -139,8 +139,8 @@ class Bot:
         symbols = Bot.get_symbols(chat_id)
         if symbol in symbols:
             symbols.remove(symbol)
-        with open(file_path, mode="w") as file:
-            json.dump(symbols, file)
+        with open(file_path, mode="w") as symbols_file:
+            json.dump(symbols, symbols_file)
 
     def __start__(self, bot, update, job_queue):
         chat_id = update.message.chat_id
@@ -151,7 +151,7 @@ class Bot:
         # bot.send_message(chat_id=chat_id, text="Starting service id {:d}...".format(chat_id))
         directory = "chats/{:d}/".format(chat_id)
         if not os.path.isdir(directory):
-            os.makedirs(directory)
+            os.makedirs(directory, exist_ok=True)
         job = job_queue.run_repeating(self.__iteration__, context=chat_id, interval=self.interval, first=self.interval)
         self.jobs[chat_id] = job
 
@@ -202,7 +202,7 @@ class Bot:
         update.message.reply_text("Adding <{:s}> to id {:d}.".format(symbol, chat_id))
         directory = "chats/{:d}/".format(chat_id)
         if not os.path.isdir(directory):
-            os.makedirs(directory)
+            os.makedirs(directory, exist_ok=True)
         Bot.add_symbol(symbol, chat_id)
         self.__list_symbols__(bot, update)
 
