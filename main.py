@@ -130,8 +130,8 @@ class Bot:
         symbols = Bot.get_symbols(chat_id)
         if symbol not in symbols:
             symbols.append(symbol)
-        with open(file_path, mode="w") as file:
-            json.dump(symbols, file)
+        with open(file_path, mode="w") as symbol_file:
+            json.dump(symbols, symbol_file)
 
     @staticmethod
     def remove_symbol(symbol, chat_id):
@@ -200,6 +200,9 @@ class Bot:
         chat_id = update.message.chat_id
         symbol = args[0]
         update.message.reply_text("Adding <{:s}> to id {:d}.".format(symbol, chat_id))
+        directory = "chats/{:d}/".format(chat_id)
+        if not os.path.isdir(directory):
+            os.mkdir(directory)
         Bot.add_symbol(symbol, chat_id)
         self.__list_symbols__(bot, update)
 
