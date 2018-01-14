@@ -151,7 +151,7 @@ class Bot:
         # bot.send_message(chat_id=chat_id, text="Starting service id {:d}...".format(chat_id))
         directory = "chats/{:d}/".format(chat_id)
         if not os.path.isdir(directory):
-            os.mkdir(directory)
+            os.makedirs(directory)
         job = job_queue.run_repeating(self.__iteration__, context=chat_id, interval=self.interval, first=self.interval)
         self.jobs[chat_id] = job
 
@@ -202,7 +202,7 @@ class Bot:
         update.message.reply_text("Adding <{:s}> to id {:d}.".format(symbol, chat_id))
         directory = "chats/{:d}/".format(chat_id)
         if not os.path.isdir(directory):
-            os.mkdir(directory)
+            os.makedirs(directory)
         Bot.add_symbol(symbol, chat_id)
         self.__list_symbols__(bot, update)
 
