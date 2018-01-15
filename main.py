@@ -131,16 +131,16 @@ class Bot:
     def get_symbols(chat_id):
         json_path = "chats/{:d}/symbols.json".format(chat_id)
         if not os.path.isfile(json_path):
-            return []
+            return set()
         with open(json_path, mode="r") as json_file:
             try:
                 symbols = json.load(json_file)
             except ValueError:
                 print("Error while parsing JSON in <{}>! Defaulting to empty list.".format(json_path))
-                symbols = []
+                symbols = set()
             except FileNotFoundError:
                 print("File <{}> not found! Defaulting to empty list.".format(json_path))
-                symbols = []
+                symbols = set()
         return {x.lower() for x in symbols}
 
     @staticmethod
