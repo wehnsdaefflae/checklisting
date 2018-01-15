@@ -1,1 +1,9 @@
-{"aab": 677.2, "aac": 867, "aad": 0.234, "aae": 345.78, "caa": 48.0, "zzz": 3, "aaa": 4.3}
+{"aab": {"id": "A A B","price_eur": 677.2},
+ "aac": {"id": "A A C","price_eur": 0.232},
+ "aad": {"id": "A A D","price_eur": 74},
+ "aae": {"id": "A A E","price_eur": 1.53},
+ "caa": {"id": "C A A","price_eur": 398},
+ "zzz": {"id": "Z Z Z","price_eur": 2356},
+ "aaa": {"id": "A A A","price_eur": 12.001},
+ "amlt":{"id": "A M L T","price_eur": 3}
+}
