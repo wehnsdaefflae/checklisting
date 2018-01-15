@@ -23,7 +23,7 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(log_formatter)
 root_logger.addHandler(console_handler)
 
-DEBUG = True
+DEBUG = False
 INTERVAL = 3 if DEBUG else 300
 LISTED_PATH = "resources/listed_coins.json"
 
