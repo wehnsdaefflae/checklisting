@@ -7,13 +7,23 @@ import shutil
 
 import time
 from coinmarketcap import Market
-from telegram import ParseMode
+from telegram import ParseMode, ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+
 import logging
+log_formatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+file_handler = logging.FileHandler("{}.log".format(time.strftime("%Y-%m-%d_%H-%M-%S")))
+file_handler.setFormatter(log_formatter)
+root_logger.addHandler(file_handler)
 
-DEBUG = False
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+root_logger.addHandler(console_handler)
+
+DEBUG = True
 INTERVAL = 3 if DEBUG else 300
 LISTED_PATH = "resources/listed_coins.json"
 
@@ -58,7 +68,6 @@ def get_cmc_prices():
         id_str = each_coin.get("id", "")
         all_coins[lowercase_symbol] = {"id": id_str, "price_eur": value}
 
-    print("Received {:d} coins...".format(len(all_coins)))
     return all_coins
 
 
@@ -67,7 +76,7 @@ def linked_symbols_string(symbols, identity_dict):
     for x in sorted(symbols):
         id_str = identity_dict.get(x, "")
         if 0 < len(id_str):
-            coin_list.append("[{:s}](https://coinmarketcap.com/currencies/{:s}/)".format(x, id_str))
+            coin_list.append("{:s} ([{:s}](https://coinmarketcap.com/currencies/{:s}/))".format(x, id_str, id_str))
         else:
             coin_list.append("{:s}".format(x))
     return ", ".join(coin_list)
@@ -81,11 +90,11 @@ class Bot:
         self.coin_ids = dict()
 
         if os.path.isfile(LISTED_PATH):
-            print("Loading previous listing from <{:s}>...".format(LISTED_PATH))
+            root_logger.info("Loading previous listing from <{:s}>...".format(LISTED_PATH))
             with open(LISTED_PATH, mode="r") as listed_file:
                 self.listing = set(json.load(listed_file))
         else:
-            print("No previous listing at <{:s}>...".format(LISTED_PATH))
+            root_logger.info("No previous listing at <{:s}>...".format(LISTED_PATH))
             self.listing = set()
 
     def update_listing(self, coin_info):
@@ -103,7 +112,9 @@ class Bot:
 
     def __iteration__(self, bot, job):
         chat_id = job.context
-        print("<Job iteration for ID {:d}.>".format(chat_id))
+        root_logger.info("Job iteration for ID {:d}.".format(chat_id))
+
+        # bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
 
         symbols = Bot.get_symbols(chat_id)
 
@@ -115,7 +126,7 @@ class Bot:
                 removed.add(each_symbol)
 
         if 0 < len(added):
-            message = "NEWLY ADDED: " + linked_symbols_string(added, self.coin_ids)
+            message = "ADDED: " + linked_symbols_string(added, self.coin_ids)
             bot.send_message(chat_id=job.context, text=message, parse_mode=ParseMode.MARKDOWN)
 
         if 0 < len(removed):
@@ -135,11 +146,11 @@ class Bot:
         with open(json_path, mode="r") as json_file:
             try:
                 symbols = json.load(json_file)
-            except ValueError:
-                print("Error while parsing JSON in <{}>! Defaulting to empty list.".format(json_path))
+            except ValueError as ve:
+                root_logger.error("Error while parsing JSON in <{}>! Defaulting to empty list.\n{:s}".format(json_path, ve))
                 symbols = set()
-            except FileNotFoundError:
-                print("File <{}> not found! Defaulting to empty list.".format(json_path))
+            except FileNotFoundError as fnf:
+                root_logger.error("File <{}> not found! Defaulting to empty list.\n{:s}".format(json_path, fnf))
                 symbols = set()
         return {x.lower() for x in symbols}
 
@@ -233,10 +244,12 @@ class Bot:
         self.__list_symbols__(bot, update)
 
     def init(self):
-        print("Initializing bot...")
         directory = "chats/"
         if not os.path.isdir(directory):
             os.makedirs(directory)
+
+        chat_ids = [x for x in os.listdir("chats/") if os.path.isdir("chats/" + x) and re.search(r'[0-9]+', x)]
+        root_logger.info("Initializing bot with {} chats.".format(len(chat_ids)))
 
         # start service
         start_handler = CommandHandler("start", self.__start__, pass_job_queue=True)
@@ -267,43 +280,38 @@ class Bot:
 
         self.updater.start_polling()
 
-        chat_ids = [x for x in os.listdir("chats/") if os.path.isdir("chats/" + x) and re.search(r'[0-9]+', x)]
-        print("Finished initialization of {} chats.\n".format(len(chat_ids)))
-
 
 if __name__ == "__main__":
-    print("Reading token...")
-    with open("resources/telegram-token.txt", mode="r") as file:
+    token_path = "resources/telegram-token.txt"
+    root_logger.info("Reading telegram token from <{:s}>.".format(token_path))
+    with open(token_path, mode="r") as file:
         token = file.readline().strip()
-    print("Token read.\n")
 
     new_bot = Bot(token)
     new_bot.init()
 
     interval = INTERVAL
     while True:
-        print("Starting new cycle...")
         waited = 0
+        root_logger.info("Waiting {:d} seconds.".format(interval))
         while waited < interval:
-            print("  Waiting {:d} more seconds...".format(interval - waited))
+            # print("  Waiting {:d} more seconds...".format(interval - waited))
             time.sleep(1)
             waited += 1
 
-        print("  Getting coinmarketcap coins...")
+        root_logger.info("Getting coinmarketcap data.")
         try:
             coin_dict = get_debug_prices() if DEBUG else get_cmc_prices()
 
             listed_coins = set(coin_dict.keys())
-            print("  Received {:d} coins.\n")
+            root_logger.info("Received {:d} coins.".format(len(listed_coins)))
 
-            print("  Saving listed coins...")
+            root_logger.info("Saving listed coins to <{}>.".format(LISTED_PATH))
             with open(LISTED_PATH, mode="w") as file:
                 json.dump(sorted(listed_coins), file)
-            print("  Saved list to <{}>.\n".format(LISTED_PATH))
 
-            print("  Updating bot state...")
+            root_logger.info("Updating bot state.")
             new_bot.update_listing(coin_dict)
-            print("  Finished updating bot.\n")
 
         except Exception as e:
-            print("Caught error!\n{}\n Skipping cycle...".format(e))
+            root_logger.error("Caught error:\n{}\nSkipping cycle...".format(e))
