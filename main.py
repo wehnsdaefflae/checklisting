@@ -163,6 +163,8 @@ class Bot:
         chat_id = update.message.chat_id
         symbols = Bot.get_symbols(chat_id)
 
+        # TODO: additional information? dollar/euro price?
+
         if len(symbols) < 1:
             update.message.reply_text("Watch list empty! Start watching with '/add <smb>'.")
 
