@@ -34,104 +34,67 @@ def get_debug_prices():
 
 
 def get_cmc_prices():
-    # https://coinmarketcap.com/currencies/attention-token-of-media/ , all_coins[x]["id"]
-
-    # {'id': 'bitcoin',
-    #  'name': 'Bitcoin',
-    #  'symbol': 'BTC',
-    #  'rank': '1',
-    #  'price_usd': '14240.1',
-    #  'price_btc': '1.0',
-    #  '24h_volume_usd': '11785900000.0',
-    #  'market_cap_usd': '239292420412',
-    #  'available_supply': '16804125.0',
-    #  'total_supply': '16804125.0',
-    #  'max_supply': '21000000.0',
-    #  'percent_change_1h': '2.52',
-    #  'percent_change_24h': '4.65',
-    #  'percent_change_7d': '-7.1',
-    #  'last_updated': '1516021762',
-    #  'price_eur': '11600.7971457',
-    #  '24h_volume_eur': '9601465936.3',
-    #  'market_cap_eur': '194941245336',
-    #  'cached': False}
-
     cmc = Market()
-    all_coins = dict()
-    for each_coin in cmc.ticker(limit=0, convert="EUR"):
-        lowercase_symbol = each_coin["symbol"].lower()
-        try:
-            value = float(each_coin["price_eur"])
-        except TypeError or KeyError:
-            value = -1.
-
-        id_str = each_coin.get("id", "")
-        all_coins[lowercase_symbol] = {"id": id_str, "price_eur": value}
-
-    return all_coins
+    return cmc.ticker(limit=0, convert="EUR")
 
 
-def linked_symbols_string(symbols, identity_dict):
-    coin_list = []
-    for x in sorted(symbols):
-        id_str = identity_dict.get(x, "")
-        if 0 < len(id_str):
-            coin_list.append("{:s} ([{:s}](https://coinmarketcap.com/currencies/{:s}/))".format(x, id_str, id_str))
+def coin_list_to_dict(coin_list):
+    return {coin.get("id", "<no symbol>"): coin for coin in coin_list}
+
+
+def linked_symbols_string(ids, id_to_coin_dict):
+    coin_str_list = []
+    for each_id in sorted(ids):
+        coin = id_to_coin_dict.get(each_id)
+        if coin is None:
+            coin_str_list.append("{:s} (no info)".format(each_id))
         else:
-            coin_list.append("{:s}".format(x))
-    return ", ".join(coin_list)
+            symbol = coin.get("symbol", "<symbol missing>")
+            format_string = "[{:s}](https://coinmarketcap.com/currencies/{:s}/) ({:s})"
+            coin_str_list.append(format_string.format(each_id, each_id, symbol))
+
+    return ", ".join(coin_str_list)
 
 
 class Bot:
     def __init__(self, token_str):
         self.updater = Updater(token_str)
         self.jobs = dict()
-        self.delta = set()
-        self.coin_ids = dict()
 
+        self.new_ids = set()
         if os.path.isfile(LISTED_PATH):
-            root_logger.info("Loading previous listing from <{:s}>...".format(LISTED_PATH))
+            root_logger.info("Loading previously listed IDs from <{:s}>...".format(LISTED_PATH))
             with open(LISTED_PATH, mode="r") as listed_file:
-                self.listing = set(json.load(listed_file))
+                self.id_to_coin = json.load(listed_file)
         else:
-            root_logger.info("No previous listing at <{:s}>...".format(LISTED_PATH))
-            self.listing = set()
+            root_logger.info("No previously listed IDs at <{:s}>...".format(LISTED_PATH))
+            self.id_to_coin = dict()
 
-    def update_listing(self, coin_info):
-        for k, v in coin_info.items():
-            self.coin_ids[k] = v.get("id", "")
+    def update_listing(self, id_to_coin):  # receives list of dicts. change ui to: watching, listed
+        listed_ids = set(id_to_coin.keys())
+        self.new_ids = listed_ids - set(self.id_to_coin.keys())
 
-        listing = set(coin_info.keys())
-        self.delta.clear()
-        for each_coin in self.listing | listing:
-            if (each_coin in self.listing) != (each_coin in listing):
-                self.delta.add(each_coin)
-
-        self.listing.clear()
-        self.listing.update(listing)
+        self.id_to_coin.clear()
+        self.id_to_coin.update(id_to_coin)
 
     def __iteration__(self, bot, job):
         chat_id = job.context
         root_logger.info("Job iteration for ID {:d}.".format(chat_id))
-
-        # bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+        bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
 
         symbols = Bot.get_symbols(chat_id)
 
-        added, removed = set(), set()
-        for each_symbol in symbols & self.delta:
-            if each_symbol in self.listing:
-                added.add(each_symbol)
-            else:
-                removed.add(each_symbol)
+        added_ids = set()
+        for each_id in self.new_ids:
+            coin = self.id_to_coin.get(each_id)
+            if coin is None:
+                root_logger.error("No coin found for coin ID {:s}! Skipping...".format(each_id))
+            elif coin.get("symbol") in symbols:
+                added_ids.add(each_id)
 
-        if 0 < len(added):
-            message = "ADDED: " + linked_symbols_string(added, self.coin_ids)
+        if 0 < len(added_ids):
+            message = "ADDED: " + linked_symbols_string(added_ids, self.id_to_coin)
             bot.send_message(chat_id=job.context, text=message, parse_mode=ParseMode.MARKDOWN)
-
-        if 0 < len(removed):
-            message = "REMOVED: " + ", ".join(sorted(removed))
-            bot.send_message(chat_id=job.context, text=message)
 
     @staticmethod
     def __unknown__(bot, update):
@@ -147,7 +110,8 @@ class Bot:
             try:
                 symbols = json.load(json_file)
             except ValueError as ve:
-                root_logger.error("Error while parsing JSON in <{}>! Defaulting to empty list.\n{:s}".format(json_path, ve))
+                format_str = "Error while parsing JSON in <{}>! Defaulting to empty list.\n{:s}"
+                root_logger.error(format_str.format(json_path, ve))
                 symbols = set()
             except FileNotFoundError as fnf:
                 root_logger.error("File <{}> not found! Defaulting to empty list.\n{:s}".format(json_path, fnf))
@@ -203,12 +167,11 @@ class Bot:
             update.message.reply_text("Watch list empty! Start watching with '/add <smb>'.")
 
         else:
-            listed = symbols & self.listing
-            if 0 < len(listed):
-                message = linked_symbols_string(listed, self.coin_ids)
-                update.message.reply_text("LISTED: " + message, parse_mode=ParseMode.MARKDOWN)
-            if len(listed) < len(symbols):
-                update.message.reply_text("NOT LISTED: " + ", ".join(sorted(symbols - self.listing)))
+            update.message.reply_text("WATCHING:\n" + ", ".join(sorted(symbols)))
+            listed_ids = {coin_id for coin_id, coin in self.id_to_coin.items() if coin.get("symbol") in symbols}
+            if 0 < len(listed_ids):
+                message = linked_symbols_string(listed_ids, self.id_to_coin)
+                update.message.reply_text("LISTED:\n" + message, parse_mode=ParseMode.MARKDOWN)
 
         if chat_id in self.jobs:
             update.message.reply_text("Service ID {:d} running. Write '/stop' to stop.".format(chat_id))
@@ -301,14 +264,16 @@ if __name__ == "__main__":
 
         root_logger.info("Getting coinmarketcap data.")
         try:
-            coin_dict = get_debug_prices() if DEBUG else get_cmc_prices()
+            coins = get_debug_prices() if DEBUG else get_cmc_prices()
+            for each_coin in coins:
+                each_coin["symbol"] = each_coin.get("symbol", "").lower()
+            root_logger.info("Received {:d} coins.".format(len(coins)))
 
-            listed_coins = set(coin_dict.keys())
-            root_logger.info("Received {:d} coins.".format(len(listed_coins)))
+            coin_dict = coin_list_to_dict(coins)
 
             root_logger.info("Saving listed coins to <{}>.".format(LISTED_PATH))
             with open(LISTED_PATH, mode="w") as file:
-                json.dump(sorted(listed_coins), file)
+                json.dump(coin_dict, file, indent=2)
 
             root_logger.info("Updating bot state.")
             new_bot.update_listing(coin_dict)
