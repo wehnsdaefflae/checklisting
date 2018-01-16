@@ -94,7 +94,7 @@ class Bot:
 
         if 0 < len(added_ids):
             message = "ADDED: " + linked_symbols_string(added_ids, self.id_to_coin)
-            bot.send_message(chat_id=job.context, text=message, parse_mode=ParseMode.MARKDOWN)
+            bot.send_message(chat_id=job.context, text=message, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
     @staticmethod
     def __unknown__(bot, update):
@@ -171,7 +171,7 @@ class Bot:
             listed_ids = {coin_id for coin_id, coin in self.id_to_coin.items() if coin.get("symbol") in symbols}
             if 0 < len(listed_ids):
                 message = linked_symbols_string(listed_ids, self.id_to_coin)
-                update.message.reply_text("LISTED:\n" + message, parse_mode=ParseMode.MARKDOWN)
+                update.message.reply_text("LISTED:\n" + message, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
         if chat_id in self.jobs:
             update.message.reply_text("Service ID {:d} running. Write '/stop' to stop.".format(chat_id))
