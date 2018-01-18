@@ -119,7 +119,8 @@ class Bot:
         return {x.lower() for x in symbols}
 
     @staticmethod
-    def add_symbol(symbol, chat_id):
+    def add_symbol(symbol_cs, chat_id):
+        symbol = symbol_cs.lower()
         file_path = "chats/{:d}/symbols.json".format(chat_id)
         symbols = Bot.get_symbols(chat_id)
         if symbol not in symbols:
@@ -128,7 +129,8 @@ class Bot:
                 json.dump(sorted(symbols), symbol_file)
 
     @staticmethod
-    def remove_symbol(symbol, chat_id):
+    def remove_symbol(symbol_cs, chat_id):
+        symbol = symbol_cs.lower()
         file_path = "chats/{:d}/symbols.json".format(chat_id)
         symbols = Bot.get_symbols(chat_id)
         if symbol in symbols:
